@@ -14,6 +14,7 @@ import (
 
 	"github.com/bassosimone/dnscodec"
 	"github.com/bassosimone/dnsoverhttps"
+	"github.com/bassosimone/httptestx"
 	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/assert"
@@ -44,16 +45,6 @@ func TestIntegrationHTTP3(t *testing.T) {
 	run(t, httpClient, "https://dns.google/dns-query")
 }
 
-// funcClient is a Client backed by a function.
-type funcClient struct {
-	do func(req *http.Request) (*http.Response, error)
-}
-
-// Do implements the dnsoverhttps.Client interface.
-func (c funcClient) Do(req *http.Request) (*http.Response, error) {
-	return c.do(req)
-}
-
 // hasPaddingOption returns whether the message includes EDNS0 padding.
 func hasPaddingOption(msg *dns.Msg) bool {
 	opt := msg.IsEdns0()
@@ -70,7 +61,7 @@ func hasPaddingOption(msg *dns.Msg) bool {
 
 func TestExchangeClientDoError(t *testing.T) {
 	wantErr := errors.New("mocked error")
-	client := funcClient{do: func(*http.Request) (*http.Response, error) {
+	client := &httptestx.FuncClient{DoFunc: func(*http.Request) (*http.Response, error) {
 		return nil, wantErr
 	}}
 	dt := dnsoverhttps.NewTransport(client, "https://example.com/dns-query")
@@ -91,7 +82,7 @@ func TestExchangeDoesNotMutateQuery(t *testing.T) {
 	orig := *query
 
 	wantErr := errors.New("mocked error")
-	client := funcClient{do: func(*http.Request) (*http.Response, error) {
+	client := &httptestx.FuncClient{DoFunc: func(*http.Request) (*http.Response, error) {
 		return nil, wantErr
 	}}
 	dt := dnsoverhttps.NewTransport(client, "https://example.com/dns-query")
@@ -137,7 +128,7 @@ func TestExchangeQueryPackError(t *testing.T) {
 func TestExchangeRequestShape(t *testing.T) {
 	wantErr := errors.New("mocked error")
 	var gotReq *http.Request
-	client := funcClient{do: func(req *http.Request) (*http.Response, error) {
+	client := &httptestx.FuncClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 		gotReq = req
 		return nil, wantErr
 	}}
@@ -172,7 +163,7 @@ func TestExchangeUsesContext(t *testing.T) {
 	cancel()
 
 	var gotCtx context.Context
-	client := funcClient{do: func(req *http.Request) (*http.Response, error) {
+	client := &httptestx.FuncClient{DoFunc: func(req *http.Request) (*http.Response, error) {
 		gotCtx = req.Context()
 		return nil, req.Context().Err()
 	}}
