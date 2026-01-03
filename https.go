@@ -93,7 +93,7 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 	// 6. Attempt to parse the raw response body
 	respMsg := &dns.Msg{}
 	if err := respMsg.Unpack(rawResp); err != nil {
-		return nil, err
+		return nil, dnscodec.ErrServerMisbehaving
 	}
 
 	// 7. Parse the response and return the parsing result
