@@ -54,6 +54,20 @@ func (c funcClient) Do(req *http.Request) (*http.Response, error) {
 	return c.do(req)
 }
 
+// hasPaddingOption returns whether the message includes EDNS0 padding.
+func hasPaddingOption(msg *dns.Msg) bool {
+	opt := msg.IsEdns0()
+	if opt == nil {
+		return false
+	}
+	for _, option := range opt.Option {
+		if _, ok := option.(*dns.EDNS0_PADDING); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func TestExchangeClientDoError(t *testing.T) {
 	wantErr := errors.New("mocked error")
 	client := funcClient{do: func(*http.Request) (*http.Response, error) {
@@ -118,6 +132,60 @@ func TestExchangeQueryPackError(t *testing.T) {
 
 	require.Error(t, err)
 	require.Nil(t, resp)
+}
+
+func TestExchangeRequestShape(t *testing.T) {
+	wantErr := errors.New("mocked error")
+	var gotReq *http.Request
+	client := funcClient{do: func(req *http.Request) (*http.Response, error) {
+		gotReq = req
+		return nil, wantErr
+	}}
+	dt := dnsoverhttps.NewTransport(client, "https://example.com/dns-query")
+
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	resp, err := dt.Exchange(context.Background(), query)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, wantErr)
+	require.Nil(t, resp)
+	require.NotNil(t, gotReq)
+	assert.Equal(t, http.MethodPost, gotReq.Method)
+	assert.Equal(t, "application/dns-message", gotReq.Header.Get("Content-Type"))
+	assert.Equal(t, "https://example.com/dns-query", gotReq.URL.String())
+
+	rawQuery, err := io.ReadAll(gotReq.Body)
+	require.NoError(t, err)
+	require.NoError(t, gotReq.Body.Close())
+
+	queryMsg := &dns.Msg{}
+	require.NoError(t, queryMsg.Unpack(rawQuery))
+	assert.Equal(t, uint16(0), queryMsg.Id)
+	assert.NotNil(t, queryMsg.IsEdns0())
+	assert.Equal(t, uint16(dnscodec.QueryMaxResponseSizeTCP), queryMsg.IsEdns0().UDPSize())
+	assert.True(t, queryMsg.IsEdns0().Do())
+	assert.True(t, hasPaddingOption(queryMsg))
+}
+
+func TestExchangeUsesContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var gotCtx context.Context
+	client := funcClient{do: func(req *http.Request) (*http.Response, error) {
+		gotCtx = req.Context()
+		return nil, req.Context().Err()
+	}}
+	dt := dnsoverhttps.NewTransport(client, "https://example.com/dns-query")
+
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	resp, err := dt.Exchange(ctx, query)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, resp)
+	require.NotNil(t, gotCtx)
+	require.ErrorIs(t, gotCtx.Err(), context.Canceled)
 }
 
 func TestExchangeServerResponses(t *testing.T) {
