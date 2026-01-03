@@ -35,6 +35,12 @@ type Transport struct {
 	//
 	// Set by [NewTransport] to the user-provided value.
 	URL string
+
+	// ObserveRawQuery is an optional hook called with a copy of the raw DNS query.
+	ObserveRawQuery func([]byte)
+
+	// ObserveRawResponse is an optional hook called with a copy of the raw DNS response.
+	ObserveRawResponse func([]byte)
 }
 
 // NewTransport creates a new [*Transport].
@@ -59,6 +65,9 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 	rawQuery, err := queryMsg.Pack()
 	if err != nil {
 		return nil, err
+	}
+	if dt.ObserveRawQuery != nil {
+		dt.ObserveRawQuery(bytes.Clone(rawQuery))
 	}
 
 	// 2. Create HTTP request
@@ -88,6 +97,9 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 	rawResp, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, dnscodec.ErrServerMisbehaving
+	}
+	if dt.ObserveRawResponse != nil {
+		dt.ObserveRawResponse(bytes.Clone(rawResp))
 	}
 
 	// 6. Attempt to parse the raw response body

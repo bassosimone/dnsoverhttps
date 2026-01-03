@@ -59,6 +59,27 @@ func hasPaddingOption(msg *dns.Msg) bool {
 	return false
 }
 
+// buildDNSResponse returns a packed reply with a single A record.
+func buildDNSResponse(t *testing.T, query *dns.Msg) []byte {
+	t.Helper()
+
+	resp := &dns.Msg{}
+	resp.SetReply(query)
+	resp.Answer = append(resp.Answer, &dns.A{
+		Hdr: dns.RR_Header{
+			Name:   query.Question[0].Name,
+			Rrtype: dns.TypeA,
+			Class:  dns.ClassINET,
+			Ttl:    1,
+		},
+		A: []byte{8, 8, 8, 8},
+	})
+	rawResp, err := resp.Pack()
+	require.NoError(t, err)
+
+	return rawResp
+}
+
 func TestExchangeClientDoError(t *testing.T) {
 	wantErr := errors.New("mocked error")
 	client := &httptestx.FuncClient{DoFunc: func(*http.Request) (*http.Response, error) {
@@ -156,6 +177,78 @@ func TestExchangeRequestShape(t *testing.T) {
 	assert.Equal(t, uint16(dnscodec.QueryMaxResponseSizeTCP), queryMsg.IsEdns0().UDPSize())
 	assert.True(t, queryMsg.IsEdns0().Do())
 	assert.True(t, hasPaddingOption(queryMsg))
+}
+
+func TestExchangeObserveRawQuery(t *testing.T) {
+	rawQueryCh := make(chan []byte, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawQuery, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.NoError(t, r.Body.Close())
+
+		rawQueryCh <- append([]byte{}, rawQuery...)
+		queryMsg := &dns.Msg{}
+		require.NoError(t, queryMsg.Unpack(rawQuery))
+
+		rawResp := buildDNSResponse(t, queryMsg)
+		w.Header().Set("Content-Type", "application/dns-message")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(rawResp)
+		require.NoError(t, err)
+	}))
+	defer srv.Close()
+
+	var hookQuery []byte
+	dt := dnsoverhttps.NewTransport(srv.Client(), srv.URL)
+	dt.ObserveRawQuery = func(p []byte) {
+		hookQuery = append([]byte{}, p...)
+		if len(p) > 0 {
+			p[0] ^= 0xff // mutate to verify we've got a copy
+		}
+	}
+
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	resp, err := dt.Exchange(context.Background(), query)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, <-rawQueryCh, hookQuery)
+}
+
+func TestExchangeObserveRawResponse(t *testing.T) {
+	rawRespCh := make(chan []byte, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawQuery, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.NoError(t, r.Body.Close())
+
+		queryMsg := &dns.Msg{}
+		require.NoError(t, queryMsg.Unpack(rawQuery))
+
+		rawResp := buildDNSResponse(t, queryMsg)
+		rawRespCh <- append([]byte{}, rawResp...)
+		w.Header().Set("Content-Type", "application/dns-message")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(rawResp)
+		require.NoError(t, err)
+	}))
+	defer srv.Close()
+
+	var hookResp []byte
+	dt := dnsoverhttps.NewTransport(srv.Client(), srv.URL)
+	dt.ObserveRawResponse = func(p []byte) {
+		hookResp = append([]byte{}, p...)
+		if len(p) > 0 {
+			p[0] ^= 0xff // mutate to verify we've got a copy
+		}
+	}
+
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	resp, err := dt.Exchange(context.Background(), query)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, <-rawRespCh, hookResp)
 }
 
 func TestExchangeUsesContext(t *testing.T) {
