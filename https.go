@@ -53,10 +53,12 @@ func NewTransport(client Client, URL string) *Transport {
 // Returns the HTTP request ready for the round trip and the [*dns.Msg] query, which is
 // required later on to properly validate the DNS response.
 func NewRequest(ctx context.Context, query *dnscodec.Query, URL string) (*http.Request, *dns.Msg, error) {
-	return newRequestWithHook(ctx, query, URL, nil)
+	return NewRequestWithHook(ctx, query, URL, nil)
 }
 
-func newRequestWithHook(ctx context.Context,
+// NewRequestWithHook is like [NewRequest] but calls observeHook with a copy
+// of the raw DNS query after serialization. If observeHook is nil, it is not called.
+func NewRequestWithHook(ctx context.Context,
 	query *dnscodec.Query, URL string, observeHook func([]byte)) (*http.Request, *dns.Msg, error) {
 	// 1. Mutate and serialize the query
 	//
@@ -90,7 +92,7 @@ func newRequestWithHook(ctx context.Context,
 // Exchange sends a [*dnscodec.Query] and receives a [*dnscodec.Response].
 func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnscodec.Response, error) {
 	// 1. Prepare for exchanging
-	httpReq, queryMsg, err := newRequestWithHook(ctx, query, dt.URL, dt.ObserveRawQuery)
+	httpReq, queryMsg, err := NewRequestWithHook(ctx, query, dt.URL, dt.ObserveRawQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -102,10 +104,12 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 	}
 
 	// 3. Parse the results
-	return readResponseWithHook(ctx, httpResp, queryMsg, dt.ObserveRawResponse)
+	return ReadResponseWithHook(ctx, httpResp, queryMsg, dt.ObserveRawResponse)
 }
 
-func readResponseWithHook(ctx context.Context,
+// ReadResponseWithHook is like [ReadResponse] but calls observeHook with a copy
+// of the raw DNS response after reading. If observeHook is nil, it is not called.
+func ReadResponseWithHook(ctx context.Context,
 	httpResp *http.Response, queryMsg *dns.Msg, observeHook func([]byte)) (*dnscodec.Response, error) {
 	// 1. make sure we eventually close the body
 	defer httpResp.Body.Close()
@@ -151,5 +155,5 @@ func readResponseWithHook(ctx context.Context,
 //
 // The context is used to interrupt reading the round trip or reading the response body.
 func ReadResponse(ctx context.Context, resp *http.Response, query *dns.Msg) (*dnscodec.Response, error) {
-	return readResponseWithHook(ctx, resp, query, nil)
+	return ReadResponseWithHook(ctx, resp, query, nil)
 }
