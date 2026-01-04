@@ -10,11 +10,14 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/bassosimone/dnscodec"
 	"github.com/bassosimone/dnsoverhttps"
 	"github.com/bassosimone/httptestx"
+	"github.com/bassosimone/iotest"
 	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/assert"
@@ -177,6 +180,31 @@ func TestExchangeRequestShape(t *testing.T) {
 	assert.Equal(t, uint16(dnscodec.QueryMaxResponseSizeTCP), queryMsg.IsEdns0().UDPSize())
 	assert.True(t, queryMsg.IsEdns0().Do())
 	assert.True(t, hasPaddingOption(queryMsg))
+}
+
+func TestNewRequestShape(t *testing.T) {
+	ctx := context.Background()
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	req, queryMsg, err := dnsoverhttps.NewRequest(ctx, query, "https://example.com/dns-query")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, queryMsg)
+
+	assert.Equal(t, http.MethodPost, req.Method)
+	assert.Equal(t, "application/dns-message", req.Header.Get("Content-Type"))
+	assert.Equal(t, "https://example.com/dns-query", req.URL.String())
+
+	rawQuery, err := io.ReadAll(req.Body)
+	require.NoError(t, err)
+	require.NoError(t, req.Body.Close())
+
+	parsedMsg := &dns.Msg{}
+	require.NoError(t, parsedMsg.Unpack(rawQuery))
+	assert.Equal(t, uint16(0), parsedMsg.Id)
+	assert.NotNil(t, parsedMsg.IsEdns0())
+	assert.Equal(t, uint16(dnscodec.QueryMaxResponseSizeTCP), parsedMsg.IsEdns0().UDPSize())
+	assert.True(t, parsedMsg.IsEdns0().Do())
+	assert.True(t, hasPaddingOption(parsedMsg))
 }
 
 func TestExchangeObserveRawQuery(t *testing.T) {
@@ -431,4 +459,47 @@ func TestExchangeServerResponses(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadResponseContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	entered := make(chan struct{})
+	unblock := make(chan struct{})
+	closed := &atomic.Bool{}
+	enteredOnce := &sync.Once{}
+	closeOnce := &sync.Once{}
+	brc := &iotest.FuncReadCloser{
+		ReadFunc: func([]byte) (int, error) {
+			enteredOnce.Do(func() { close(entered) })
+			<-unblock
+			return 0, io.EOF
+		},
+		CloseFunc: func() error {
+			closed.Store(true)
+			enteredOnce.Do(func() { close(entered) })
+			closeOnce.Do(func() { close(unblock) })
+			return nil
+		},
+	}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/dns-message"}},
+		Body:       brc,
+	}
+
+	query := dnscodec.NewQuery("dns.google", dns.TypeA)
+	queryMsg, err := query.NewMsg()
+	require.NoError(t, err)
+
+	go func() {
+		<-entered
+		cancel()
+	}()
+
+	parsed, err := dnsoverhttps.ReadResponse(ctx, resp, queryMsg)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, parsed)
+	require.True(t, closed.Load())
 }

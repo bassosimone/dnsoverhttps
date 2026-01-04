@@ -10,10 +10,10 @@ package dnsoverhttps
 import (
 	"bytes"
 	"context"
-	"io"
 	"net/http"
 
 	"github.com/bassosimone/dnscodec"
+	"github.com/bassosimone/iox"
 	"github.com/miekg/dns"
 )
 
@@ -48,8 +48,16 @@ func NewTransport(client Client, URL string) *Transport {
 	return &Transport{Client: client, URL: URL}
 }
 
-// Exchange sends a [*dnscodec.Query] and receives a [*dnscodec.Response].
-func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnscodec.Response, error) {
+// NewRequest serializes a DNS query message into an HTTP request.
+//
+// Returns the HTTP request ready for the round trip and the [*dns.Msg] query, which is
+// required later on to properly validate the DNS response.
+func NewRequest(ctx context.Context, query *dnscodec.Query, URL string) (*http.Request, *dns.Msg, error) {
+	return newRequestWithHook(ctx, query, URL, nil)
+}
+
+func newRequestWithHook(ctx context.Context,
+	query *dnscodec.Query, URL string, observeHook func([]byte)) (*http.Request, *dns.Msg, error) {
 	// 1. Mutate and serialize the query
 	//
 	// For DoH, by default we leave the query ID to zero, which
@@ -60,31 +68,49 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 	query.MaxSize = dnscodec.QueryMaxResponseSizeTCP
 	queryMsg, err := query.NewMsg()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rawQuery, err := queryMsg.Pack()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if dt.ObserveRawQuery != nil {
-		dt.ObserveRawQuery(bytes.Clone(rawQuery))
+	if observeHook != nil {
+		observeHook(bytes.Clone(rawQuery))
 	}
 
 	// 2. Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, dt.URL, bytes.NewReader(rawQuery))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, URL, bytes.NewReader(rawQuery))
+	if err != nil {
+		return nil, nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/dns-message")
+	return httpReq, queryMsg, nil
+}
+
+// Exchange sends a [*dnscodec.Query] and receives a [*dnscodec.Response].
+func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnscodec.Response, error) {
+	// 1. Prepare for exchanging
+	httpReq, queryMsg, err := newRequestWithHook(ctx, query, dt.URL, dt.ObserveRawQuery)
 	if err != nil {
 		return nil, err
 	}
-	httpReq.Header.Set("Content-Type", "application/dns-message")
 
-	// 3. Do the HTTP round trip
+	// 2. Do the HTTP round trip
 	httpResp, err := dt.Client.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
+
+	// 3. Parse the results
+	return readResponseWithHook(ctx, httpResp, queryMsg, dt.ObserveRawResponse)
+}
+
+func readResponseWithHook(ctx context.Context,
+	httpResp *http.Response, queryMsg *dns.Msg, observeHook func([]byte)) (*dnscodec.Response, error) {
+	// 1. make sure we eventually close the body
 	defer httpResp.Body.Close()
 
-	// 4. Ensure that the response makes sense
+	// 2. Ensure that the response makes sense
 	if httpResp.StatusCode != 200 {
 		return nil, dnscodec.ErrServerMisbehaving
 	}
@@ -92,22 +118,38 @@ func (dt *Transport) Exchange(ctx context.Context, query *dnscodec.Query) (*dnsc
 		return nil, dnscodec.ErrServerMisbehaving
 	}
 
-	// 5. Limit response body to a reasonable size and read it
-	reader := io.LimitReader(httpResp.Body, dnscodec.QueryMaxResponseSizeTCP)
-	rawResp, err := io.ReadAll(reader)
-	if err != nil {
+	// 3. Limit response body to a reasonable size and read it
+	//
+	// - When the error is caused by the context, avoid ErrServerMisbehaving
+	buff := &bytes.Buffer{}
+	lockedWriter := iox.NewLockedWriteCloser(iox.NopWriteCloser(buff))
+	reader := iox.LimitReadCloser(httpResp.Body, dnscodec.QueryMaxResponseSizeTCP)
+	if _, err := iox.CopyContext(ctx, lockedWriter, reader); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, dnscodec.ErrServerMisbehaving
 	}
-	if dt.ObserveRawResponse != nil {
-		dt.ObserveRawResponse(bytes.Clone(rawResp))
+	rawResp := buff.Bytes()
+	if observeHook != nil {
+		observeHook(bytes.Clone(rawResp))
 	}
 
-	// 6. Attempt to parse the raw response body
+	// 4. Attempt to parse the raw response body
 	respMsg := &dns.Msg{}
 	if err := respMsg.Unpack(rawResp); err != nil {
 		return nil, dnscodec.ErrServerMisbehaving
 	}
 
-	// 7. Parse the response and return the parsing result
+	// 5. Parse the response and return the parsing result
 	return dnscodec.ParseResponse(queryMsg, respMsg)
+}
+
+// ReadResponse reads and validates a DNS response as the response for the given query.
+//
+// Because this function reads the whole response body, it closes it when done.
+//
+// The context is used to interrupt reading the round trip or reading the response body.
+func ReadResponse(ctx context.Context, resp *http.Response, query *dns.Msg) (*dnscodec.Response, error) {
+	return readResponseWithHook(ctx, resp, query, nil)
 }
