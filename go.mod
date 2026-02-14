@@ -7,7 +7,7 @@ require (
 	github.com/bassosimone/dnstest v0.0.0-20260210075929-b5564aaef1fc
 	github.com/bassosimone/httptestx v0.0.0-20260108162357-eb420dfdf26f
 	github.com/bassosimone/iotest v0.0.0-20260108162419-cc1a50b01693
-	github.com/bassosimone/iox v0.0.0-20260118074942-2e71dd93cf8f
+	github.com/bassosimone/iox v0.0.0-20260214210219-fcf71040f780
 	github.com/bassosimone/pkitest v0.0.0-20260108162522-4e97d4738e31
 	github.com/bassosimone/runtimex v0.0.0-20260108162100-336f3823f6b7
 	github.com/miekg/dns v1.1.72

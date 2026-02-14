@@ -6,8 +6,8 @@ github.com/bassosimone/httptestx v0.0.0-20260108162357-eb420dfdf26f h1:+jhcNx916
 github.com/bassosimone/httptestx v0.0.0-20260108162357-eb420dfdf26f/go.mod h1:KkYa3rtxDneIzTsAujMKzuKjC9VvAnaA86VT3u7WkTQ=
 github.com/bassosimone/iotest v0.0.0-20260108162419-cc1a50b01693 h1:R9z1MEIO9XU9MTAeEWBzhU93IOEKDk4UIRyTmhhQFKY=
 github.com/bassosimone/iotest v0.0.0-20260108162419-cc1a50b01693/go.mod h1:tcrllxHmwim0qCBvmbyQs0CGo4s4HwMaZwblEzp6eDk=
-github.com/bassosimone/iox v0.0.0-20260118074942-2e71dd93cf8f h1:v3gC7pMLx6Ia2+MnzhWRfS5Kwe3ckAu4PX4NrvaTxB8=
-github.com/bassosimone/iox v0.0.0-20260118074942-2e71dd93cf8f/go.mod h1:3dhCKfl705UjK5ZLwS69bsp2l7TpYPwW73B5n3GDSYI=
+github.com/bassosimone/iox v0.0.0-20260214210219-fcf71040f780 h1:7YxchjmrFDdm7dJfCx90t1GSPU4b4vPqHHyQPS97ELs=
+github.com/bassosimone/iox v0.0.0-20260214210219-fcf71040f780/go.mod h1:3dhCKfl705UjK5ZLwS69bsp2l7TpYPwW73B5n3GDSYI=
 github.com/bassosimone/pkitest v0.0.0-20260108162522-4e97d4738e31 h1:bWrYpMtPO3efLcYHqX9Z3mHmV0MGAE8uaJ1fJaEV2RE=
 github.com/bassosimone/pkitest v0.0.0-20260108162522-4e97d4738e31/go.mod h1:SnA6v5F2KSxICuaiLsxJ54mqZgV/NpuuZtqNdVkcafo=
 github.com/bassosimone/runtimex v0.0.0-20260108162100-336f3823f6b7 h1:9qKFMaKc84pZ1i7FMUGLMqo56rv4miCd4/+qlH9SWDI=

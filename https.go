@@ -125,16 +125,14 @@ func ReadResponseWithHook(ctx context.Context,
 	// 3. Limit response body to a reasonable size and read it
 	//
 	// - When the error is caused by the context, avoid ErrServerMisbehaving
-	buff := &bytes.Buffer{}
-	lockedWriter := iox.NewLockedWriteCloser(iox.NopWriteCloser(buff))
 	reader := iox.LimitReadCloser(httpResp.Body, dnscodec.QueryMaxResponseSizeTCP)
-	if _, err := iox.CopyContext(ctx, lockedWriter, reader); err != nil {
+	rawResp, err := iox.ReadAllContext(ctx, reader)
+	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, dnscodec.ErrServerMisbehaving
 	}
-	rawResp := buff.Bytes()
 	if observeHook != nil {
 		observeHook(bytes.Clone(rawResp))
 	}
