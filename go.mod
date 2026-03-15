@@ -3,8 +3,8 @@ module github.com/bassosimone/dnsoverhttps
 go 1.25.5
 
 require (
-	github.com/bassosimone/dnscodec v0.0.0-20260227090120-ec345569a921
-	github.com/bassosimone/dnstest v0.0.0-20260227090120-60886687b754
+	github.com/bassosimone/dnscodec v0.0.0-20260310100807-317675eb697f
+	github.com/bassosimone/dnstest v0.0.0-20260310100807-504008aac27d
 	github.com/bassosimone/httptestx v0.0.0-20260108162357-eb420dfdf26f
 	github.com/bassosimone/iotest v0.0.0-20260108162419-cc1a50b01693
 	github.com/bassosimone/iox v0.0.0-20260214210219-fcf71040f780
@@ -21,12 +21,12 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/mod v0.33.0 // indirect
-	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
