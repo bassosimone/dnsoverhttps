@@ -3,8 +3,8 @@ module github.com/bassosimone/dnsoverhttps
 go 1.25.5
 
 require (
-	github.com/bassosimone/dnscodec v0.0.0-20260310100807-317675eb697f
-	github.com/bassosimone/dnstest v0.0.0-20260310100807-504008aac27d
+	github.com/bassosimone/dnscodec v0.0.0-20260315095815-6c62273d0db8
+	github.com/bassosimone/dnstest v0.0.0-20260315095815-43f9058b5317
 	github.com/bassosimone/httptestx v0.0.0-20260108162357-eb420dfdf26f
 	github.com/bassosimone/iotest v0.0.0-20260108162419-cc1a50b01693
 	github.com/bassosimone/iox v0.0.0-20260214210219-fcf71040f780
