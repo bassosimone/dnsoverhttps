@@ -11,7 +11,7 @@ require (
 	github.com/bassosimone/pkitest v0.0.0-20260608030630-3ea085cb927c
 	github.com/bassosimone/runtimex v0.0.0-20260430082757-ec3a7b516e79
 	github.com/miekg/dns v1.1.72
-	github.com/quic-go/quic-go v0.59.1
+	github.com/quic-go/quic-go v0.60.0
 	github.com/stretchr/testify v1.11.1
 )
 
