@@ -3,13 +3,13 @@ module github.com/bassosimone/dnsoverhttps
 go 1.25.5
 
 require (
-	github.com/bassosimone/dnscodec v0.0.0-20260817130841-5191fab705bf
-	github.com/bassosimone/dnstest v0.0.0-20260817133007-71254cf4c67c
-	github.com/bassosimone/httptestx v0.0.0-20260817131320-337a274c0a5d
-	github.com/bassosimone/iotest v0.0.0-20260817131542-fa23ac68e6cd
-	github.com/bassosimone/iox v0.0.0-20260821091747-84c4362d303b
-	github.com/bassosimone/pkitest v0.0.0-20260817131923-f15e2a15150a
-	github.com/bassosimone/runtimex v0.0.0-20260817130226-a470a996118d
+	github.com/bassosimone/dnscodec v0.0.0-20260824080712-9849cea06676
+	github.com/bassosimone/dnstest v0.0.0-20260825073620-815899f7ed46
+	github.com/bassosimone/httptestx v0.0.0-20260824081237-196aee4af91b
+	github.com/bassosimone/iotest v0.0.0-20260824081424-e4e7fdb478a4
+	github.com/bassosimone/iox v0.0.0-20260825073803-437e2897df22
+	github.com/bassosimone/pkitest v0.0.0-20260824081820-97f68d45ac20
+	github.com/bassosimone/runtimex v0.0.0-20260823103059-603841e26ca3
 	github.com/miekg/dns v1.1.73
 	github.com/quic-go/quic-go v0.61.0
 	github.com/stretchr/testify v1.12.1
