@@ -3,13 +3,13 @@ module github.com/bassosimone/dnsoverhttps
 go 1.25.5
 
 require (
-	github.com/bassosimone/dnscodec v0.0.0-20260824080712-9849cea06676
-	github.com/bassosimone/dnstest v0.0.0-20260825073620-815899f7ed46
-	github.com/bassosimone/httptestx v0.0.0-20260824081237-196aee4af91b
-	github.com/bassosimone/iotest v0.0.0-20260824081424-e4e7fdb478a4
-	github.com/bassosimone/iox v0.0.0-20260825073803-437e2897df22
-	github.com/bassosimone/pkitest v0.0.0-20260824081820-97f68d45ac20
-	github.com/bassosimone/runtimex v0.0.0-20260823103059-603841e26ca3
+	github.com/bassosimone/dnscodec v0.0.0-20260828081951-db31461e8991
+	github.com/bassosimone/dnstest v0.0.0-20260828083113-92de75834e42
+	github.com/bassosimone/httptestx v0.0.0-20260828082225-d893819903d0
+	github.com/bassosimone/iotest v0.0.0-20260828082326-40540edd179d
+	github.com/bassosimone/iox v0.0.0-20260828083231-4108e983e8cc
+	github.com/bassosimone/pkitest v0.0.0-20260828082631-dc79fe632a24
+	github.com/bassosimone/runtimex v0.0.0-20260828074549-6e2e561f98d1
 	github.com/miekg/dns v1.1.73
 	github.com/quic-go/quic-go v0.61.0
 	github.com/stretchr/testify v1.12.1
